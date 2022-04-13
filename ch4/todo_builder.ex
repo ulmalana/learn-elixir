@@ -1,7 +1,15 @@
 defmodule TodoList do
     defstruct auto_id: 1, entries: %{}
 
-    def new(), do: %TodoList{}
+    def new(entries \\ []) do
+        Enum.reduce(
+            entries,
+            %TodoList{},
+            fn entry, todo_list_acc ->
+                add_entry(todo_list_acc, entry)
+            end
+        )
+    end
 
     def add_entry(todo_list, entry) do
         entry = Map.put(entry, :id, todo_list.auto_id)
@@ -35,4 +43,18 @@ defmodule TodoList do
     def delete_entry(todo_list, entry_id) do
         %TodoList{todo_list | entries: Map.delete(todo_list.entries, entry_id)}
     end
+end
+
+#protocol
+defimpl Collectable, for: TodoList do
+    def into(original) do
+        {original, &into_callback/2}
+    end
+
+    defp into_callback(todo_list, {:cont, entry}) do
+        TodoList.add_entry(todo_list, entry)
+    end
+
+    defp into_callback(todo_list, :done), do: todo_list
+    defp into_callback(todo_list, :halt), do: :ok
 end
