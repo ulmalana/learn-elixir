@@ -115,3 +115,56 @@ Stopping todo server for bobs_list
 iex(3)> Process.alive?(pid)
 false
 ```
+
+## ETS Tables
+
+Erlang Term Storage (ETS) tables can be used to share some states between multiple processes in more efficient way. It is similar to `GenServer` and `Agent` with **better performance** but **handles limited scenarios**.
+
+The following are the benchmarking results for KeyVal server using GenServer:
+
+```shell
+$ mix run -e "Bench.run(KeyVal)"
+
+487528 operations/sec
+
+$ mix run -e "Bench.run(KeyVal, concurrency: 1000)"
+
+421062 operations/sec
+
+# with 1000 concurrent client process, the performance gets worse because the keyval server becomes the bottleneck.
+```
+
+ETS can be used to solve that bottleneck issue. It is basically a data structure (a set by default) that we can use to share system-wide state. Examples of how to create ETS table:
+
+```elixir
+iex(1)> table = :ets.new(:my_table, [])
+#Reference<0.1678940777.2472935427.231065>
+
+iex(2)> :ets.insert(table, {:key_1, 1})
+true
+
+iex(3)> :ets.insert(table, {:key_2, 2})
+true
+
+iex(4)> :ets.insert(table, {:key_1, 3})
+true
+
+iex(5)> :ets.lookup(table, :key_1)
+[key_1: 3]
+
+iex(6)> :ets.lookup(table, :key_2)
+[key_2: 2]
+
+iex(7)> :ets.lookup(table, :key_4)
+[]
+``` 
+When we change the KeyVal implementation from GenServer to ETS table and perform the same benchmarking, we will see an improvement.
+
+```shell
+$ mix run -e "Bench.run(KeyVal)"
+2805759 operations/sec
+
+$ mix run -e "Bench.run(KeyVal, concurrency: 1000, num_updates: 100)"
+
+8236227 operations/sec
+```
